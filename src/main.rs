@@ -5,23 +5,24 @@ use crossterm::{
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     prelude::*,
-    widgets::{Block, Borders, Paragraph, Widget},
+    widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
 };
 use std::{error::Error, io};
 use tui_widget_list::{List, ListState, Listable};
 
-trait UiSectionTrait<'a>: Widget + Listable {
+trait UiSectionTrait<'a>: StatefulWidget + Widget + Listable {
     fn render(&self, area: Rect, buf: &mut Buffer);
-    fn height(&self) -> u16;
+    //fn height(&self) -> u16;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct Replicasets<'a> {
     paragraph: Paragraph<'a>,
     height: u16,
+    state: ListState,
 }
 
-impl Replicasets<'_> {
+impl<'a> Replicasets<'a> {
     pub fn new(text: &str, height: u16, title: String) -> Self {
         let paragraph = Paragraph::new(vec![Line::from(Span::styled(
             text.to_string(),
@@ -29,7 +30,12 @@ impl Replicasets<'_> {
         ))])
         .style(Style::default().bg(Color::Black))
         .block(Block::default().borders(Borders::ALL).title(title.clone()));
-        Self { paragraph, height }
+        let state = ListState::default();
+        Self {
+            paragraph,
+            height,
+            state,
+        }
     }
 
     pub fn style(mut self, style: Style) -> Self {
@@ -38,15 +44,20 @@ impl Replicasets<'_> {
     }
 }
 
+impl<'a> StatefulWidget for Replicasets<'a> {
+    type State = ListState;
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {}
+}
+
 impl<'a> UiSectionTrait<'a> for Replicasets<'a> {
     fn render(&self, _area: Rect, _buf: &mut Buffer) {
         // Implementation for rendering Replicasets
     }
 
-    fn height(&self) -> u16 {
-        // Return height for Replicasets
-        self.height
-    }
+    // fn height(&self) -> u16 {
+    //     // Return height for Replicasets
+    //     self.height
+    // }
 }
 
 impl<'a> Listable for Replicasets<'a> {
@@ -67,10 +78,11 @@ impl<'a> Widget for Replicasets<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct Services<'a> {
     paragraph: Paragraph<'a>,
     height: u16,
+    state: ListState,
 }
 
 impl<'a> Widget for Services<'a> {
@@ -79,14 +91,19 @@ impl<'a> Widget for Services<'a> {
     }
 }
 
+impl<'a> StatefulWidget for Services<'a> {
+    type State = ListState;
+    fn render(self, _area: Rect, _buf: &mut Buffer, _state: &mut Self::State) {}
+}
+
 impl<'a> UiSectionTrait<'a> for Services<'a> {
     fn render(&self, _area: Rect, _buf: &mut Buffer) {
         // Implementation for rendering Services
     }
 
-    fn height(&self) -> u16 {
-        self.height
-    }
+    // fn height(&self) -> u16 {
+    //     self.height
+    // }
 }
 
 impl<'a> Listable for Services<'a> {
@@ -109,7 +126,12 @@ impl Services<'_> {
         ))])
         .style(Style::default().bg(Color::Black))
         .block(Block::default().borders(Borders::ALL).title(title.clone()));
-        Self { paragraph, height }
+        let state = ListState::default();
+        Self {
+            paragraph,
+            height,
+            state,
+        }
     }
 
     pub fn style(mut self, style: Style) -> Self {
@@ -165,14 +187,32 @@ fn panic_hook() {
     }));
 }
 
-pub struct App<'a> {
-    pub list: Vec<Box<dyn UiSectionTrait<'a> + 'a>>,
-    pub state: ListState,
+impl<'a> Widget for Box<dyn UiSectionTrait<'a, State = ListState>> {
+    fn render(self, _area: Rect, _buf: &mut Buffer) {
+        // Implementation for rendering Replicasets
+    }
+}
+
+impl<'a> Listable for Box<dyn UiSectionTrait<'a, State = ListState>> {
+    // Implement the methods required by the Listable trait
+    // You'll need to delegate these method calls to the inner trait object
+    // For example:
+
+    fn height(&self) -> usize {
+        self.as_ref().height() as usize
+    }
+
+    fn highlight(self) -> Self {
+        // Implement highlighting for the boxed trait object
+        // This might be tricky and require additional thought
+        // based on how your trait objects should handle highlighting
+        self
+    }
 }
 
 impl<'a> App<'a> {
     pub fn new() -> App<'a> {
-        let items: Vec<Box<dyn UiSectionTrait<'a>>> = vec![
+        let items: Vec<Box<dyn UiSectionTrait<'a, State = ListState>>> = vec![
             Box::new(Replicasets::new(
                 "Height: 12",
                 12,
@@ -206,11 +246,16 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Resu
     }
 }
 
-pub fn ui(f: &mut Frame, app: &mut App) {
-    // Pass a reference to the list instead of cloning
+pub struct App<'a> {
+    pub list: List<'a, Box<dyn UiSectionTrait<'a, State = ListState>>>,
+    pub state: ListState,
+}
+
+impl<'a> StatefulWidget for Box<dyn UiSectionTrait<'a, State = ListState>> {
+    type State = ListState;
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {}
+}
+
+pub fn ui<'a>(f: &mut Frame, app: &mut App<'a>) {
     f.render_stateful_widget(&app.list, f.size(), &mut app.state);
 }
-// pub fn ui(f: &mut Frame, app: &mut App) {
-//     let list = app.list.clone();
-//     f.render_stateful_widget(list, f.size(), &mut app.state);
-// }
