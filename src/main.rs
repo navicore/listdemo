@@ -10,7 +10,7 @@ use ratatui::{
 use std::{error::Error, io};
 use tui_widget_list::{List, ListState, Listable};
 
-trait UiSectionTrait<'a>: StatefulWidget + Widget + Listable {
+pub trait UiSectionTrait<'a>: StatefulWidget + Widget + Listable {
     fn render(&self, area: Rect, buf: &mut Buffer);
     //fn height(&self) -> u16;
 }
@@ -23,13 +23,13 @@ struct Replicasets<'a> {
 }
 
 impl<'a> Replicasets<'a> {
-    pub fn new(text: &str, height: u16, title: String) -> Self {
+    pub fn new(text: &str, height: u16, title: &'a str) -> Self {
         let paragraph = Paragraph::new(vec![Line::from(Span::styled(
             text.to_string(),
             Style::default().fg(Color::Cyan),
         ))])
         .style(Style::default().bg(Color::Black))
-        .block(Block::default().borders(Borders::ALL).title(title.clone()));
+        .block(Block::default().borders(Borders::ALL).title(title));
         let state = ListState::default();
         Self {
             paragraph,
@@ -46,7 +46,7 @@ impl<'a> Replicasets<'a> {
 
 impl<'a> StatefulWidget for Replicasets<'a> {
     type State = ListState;
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {}
+    fn render(self, _area: Rect, _buf: &mut Buffer, _state: &mut Self::State) {}
 }
 
 impl<'a> UiSectionTrait<'a> for Replicasets<'a> {
@@ -118,14 +118,14 @@ impl<'a> Listable for Services<'a> {
     }
 }
 
-impl Services<'_> {
-    pub fn new(text: &str, height: u16, title: String) -> Self {
+impl<'a> Services<'a> {
+    pub fn new(text: &str, height: u16, title: &'a str) -> Self {
         let paragraph = Paragraph::new(vec![Line::from(Span::styled(
             text.to_string(),
             Style::default().fg(Color::Cyan),
         ))])
         .style(Style::default().bg(Color::Black))
-        .block(Block::default().borders(Borders::ALL).title(title.clone()));
+        .block(Block::default().borders(Borders::ALL).title(title));
         let state = ListState::default();
         Self {
             paragraph,
@@ -199,7 +199,7 @@ impl<'a> Listable for Box<dyn UiSectionTrait<'a, State = ListState>> {
     // For example:
 
     fn height(&self) -> usize {
-        self.as_ref().height() as usize
+        self.as_ref().height()
     }
 
     fn highlight(self) -> Self {
@@ -210,15 +210,11 @@ impl<'a> Listable for Box<dyn UiSectionTrait<'a, State = ListState>> {
     }
 }
 
-impl<'a> App<'a> {
-    pub fn new() -> App<'a> {
-        let items: Vec<Box<dyn UiSectionTrait<'a, State = ListState>>> = vec![
-            Box::new(Replicasets::new(
-                "Height: 12",
-                12,
-                "ReplicaSets".to_string(),
-            )),
-            Box::new(Services::new("Height: 8", 8, "Services".to_string())),
+impl App<'static> {
+    pub fn new() -> App<'static> {
+        let items: Vec<Box<dyn UiSectionTrait<State = ListState>>> = vec![
+            Box::new(Replicasets::new("Height: 12", 12, "ReplicaSets")),
+            Box::new(Services::new("Height: 8", 8, "Services")),
         ];
         let list = List::new(items)
             .style(Style::default().bg(Color::Black))
@@ -251,11 +247,19 @@ pub struct App<'a> {
     pub state: ListState,
 }
 
+impl Default for App<'static> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> StatefulWidget for Box<dyn UiSectionTrait<'a, State = ListState>> {
     type State = ListState;
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {}
+    fn render(self, _area: Rect, _buf: &mut Buffer, _state: &mut Self::State) {}
 }
 
 pub fn ui<'a>(f: &mut Frame, app: &mut App<'a>) {
-    f.render_stateful_widget(&app.list, f.size(), &mut app.state);
+    //f.render_stateful_widget(&mut app.list, f.size(), &mut app.state);
+    //f.render_widget(&mut app.list, &mut app.state);
+    f.render_widget(&mut app.list, area);
 }
