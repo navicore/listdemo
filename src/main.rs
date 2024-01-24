@@ -1,8 +1,3 @@
-use ratatui::{
-    prelude::*,
-    widgets::{canvas::*, *},
-};
-
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
